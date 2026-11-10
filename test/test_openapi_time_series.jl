@@ -156,7 +156,7 @@ end
     )
     scale, labels = PDP._series_basis(sys, entry, "LoadZone", PDP.get_value(zone, :id))
     @test scale ≈ PDP.get_value(zone, :peak_reactive_power, "MVAr")
-    @test labels == (unit_system = IS.NU, units = "MVAr", quantity_kind = "reactive_power")
+    @test labels == (units = "MVAr", quantity_kind = "reactive_power")
 
     battery = first(PDP.get_components(sys, "EnergyReservoirStorage"))
     entry = PDP.TimeSeriesPointer(
@@ -167,7 +167,6 @@ end
         sys, entry, "EnergyReservoirStorage", PDP.get_value(battery, :id),
     )
     @test scale == 1.0
-    @test labels.unit_system == IS.CU
     @test labels.quantity_kind == "energy"
     @test labels.per_unit_of == "storage_capacity"
 end
@@ -191,7 +190,6 @@ end
             sys, bare, "HydroReservoir", PDP.get_value(reservoir, :id),
         ),
     )
-    @test isnothing(PDP._series_unit_system(bare))
 end
 
 @testset "a zone's load series fans out to the loads under it" begin

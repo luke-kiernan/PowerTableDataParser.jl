@@ -41,9 +41,9 @@ Read a `timeseries_pointers.json` metadata file and attach the referenced time s
 by reading each CSV directly and constructing `SingleTimeSeries` objects.
 
 A pointer that declares a multiplier stores its values normalized by `normalization_factor`
-— per unit on the owner's own base — and says so: `unit_system` is the component base,
-`quantity_kind` names the physical quantity the values scale to, and `per_unit_of` the owner
-field they are a fraction of. Owners PowerSystems takes in natural units only get the
+— per unit on the owner's own base — and says so: `per_unit_of` names the owner field they
+are a fraction of (from which IS derives the component base), and `quantity_kind` the
+physical quantity the values scale to. Owners PowerSystems takes in natural units only get the
 profile converted instead; see [`_series_for`](@ref).
 
 `units` stays unset throughout: a per-unit basis is not a units label.
@@ -97,7 +97,6 @@ function PDP.add_time_series_from_pointers!(
         series = PSY.SingleTimeSeries(
             name,
             ta;
-            unit_system = _series_unit_system(multiplier),
             units = nothing,
             per_unit_of = _per_unit_of(multiplier),
             quantity_kind = PDP.quantity_kind_for_multiplier(
@@ -152,10 +151,6 @@ function _normalized(
     isnothing(multiplier) && return values
     return PDP._normalized(values, PDP._normalization_factor(factor))
 end
-
-"""The basis the values are stored in: the component's own base once normalized, and
-nothing declared otherwise — which is deliberately not the same as natural units."""
-_series_unit_system(multiplier::Union{Nothing, String}) = PDP._series_unit_system(multiplier)
 
 """
 The component a pointer's series belongs on. A series normalized by a reservoir field but
@@ -221,7 +216,6 @@ _series_for(
 _natural(series::PSY.SingleTimeSeries, scale::Real, units::String) = PSY.SingleTimeSeries(
     IS.get_name(series),
     IS.get_data(series) .* scale;
-    unit_system = IS.NU,
     units = units,
     quantity_kind = IS.get_quantity_kind(series),
 )

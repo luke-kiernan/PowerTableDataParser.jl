@@ -279,19 +279,6 @@ function _normalized(values::Vector{Float64}, factor::AbstractString)
     return values ./ maximum(values)
 end
 
-"""The basis a pointer's values are stored in. `nothing` when no multiplier is declared:
-the values are then as the source file gave them, and no basis was declared — which is
-deliberately not the same as declaring natural units."""
-function _series_unit_system(multiplier::Union{Nothing, AbstractString})
-    if isnothing(multiplier)
-        return nothing
-    end
-    return COMPONENT_BASE_UNIT_SYSTEM
-end
-
-_series_unit_system(entry::TimeSeriesPointer) =
-    _series_unit_system(entry.scaling_factor_multiplier)
-
 """The staged component of type `owner_type` with id `owner_id`."""
 function _component(sys::OpenAPISystem, owner_type::AbstractString, owner_id::Int)
     for component in get_components(sys, owner_type)
@@ -311,7 +298,7 @@ _reservoir_level_data_type(sys::OpenAPISystem, owner_type::AbstractString, owner
 
 """
 The physical quantity a multiplier's normalized values scale to; `nothing` for no multiplier,
-matching [`_series_unit_system`](@ref) — an unnormalized series states no basis, so naming
+like `per_unit_of` — an unnormalized series states no basis, so naming
 the quantity its values would scale to would be a claim about nothing.
 
 `resolve_level_data_type` is called only for the reservoir multipliers, whose quantity
@@ -407,14 +394,13 @@ function _series_basis(
         units = active ? "MW" : "MVAr"
         return _in_natural(sys, _component(sys, owner_type, owner_id), peak, units),
         (
-            unit_system = IS.NU,
             units = units,
             quantity_kind = MULTIPLIER_QUANTITY_KINDS[multiplier],
         )
     end
     if multiplier == "get_requirement"
         return _in_natural(sys, _component(sys, owner_type, owner_id), :requirement, "MW"),
-        (unit_system = IS.NU, units = "MW", quantity_kind = "active_power")
+        (units = "MW", quantity_kind = "active_power")
     end
     # A battery's level stays CU of its capacity.
     if owner_type == "EnergyReservoirStorage" &&
@@ -422,7 +408,6 @@ function _series_basis(
        !(multiplier in RESERVOIR_FLOW_MULTIPLIERS)
         return 1.0,
         (
-            unit_system = COMPONENT_BASE_UNIT_SYSTEM,
             quantity_kind = "energy",
             per_unit_of = "storage_capacity",
         )
@@ -447,14 +432,13 @@ function _series_basis(
         )
         field = Symbol(chopprefix(multiplier, "get_"))
         return get_value(reservoir, field) * get_base_power(sys),
-        (unit_system = IS.NU, units = "MW", quantity_kind = "active_power")
+        (units = "MW", quantity_kind = "active_power")
     end
     if haskey(RESERVOIR_QUANTITY_KINDS, multiplier)
         quantity = _series_quantity_kind(sys, entry, owner_type, owner_id)
         reservoir = _component(sys, owner_type, owner_id)
         return get_value(reservoir, :storage_level_limits).max,
         (
-            unit_system = IS.NU,
             units = RESERVOIR_LEVEL_UNITS[quantity],
             quantity_kind = quantity,
         )
@@ -462,7 +446,6 @@ function _series_basis(
     # Only a device's power is left: a fraction of its `base_power`.
     return 1.0,
     (
-        unit_system = COMPONENT_BASE_UNIT_SYSTEM,
         quantity_kind = _series_quantity_kind(sys, entry, owner_type, owner_id),
         per_unit_of = "base_power",
     )
